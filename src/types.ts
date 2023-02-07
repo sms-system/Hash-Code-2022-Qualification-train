@@ -3,17 +3,17 @@ export type InputData = {
     projects: Array<Project>;
 };
 
-type Contributor = {
+export type Contributor = {
     name: string;
     skills: Array<Skill>;
 };
 
-type Skill = {
+export type Skill = {
     name: string;
     level: number;
 };
 
-type Project = {
+export type Project = {
     name: string;
     daysToComplete: number;
     score: number;
