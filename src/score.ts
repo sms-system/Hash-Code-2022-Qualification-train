@@ -32,7 +32,12 @@ export function calculateScore(input: InputData, output: Output): number {
         const skipProjects = [];
         for (const projectOutput of nonStartedProjects) {
             const contributorNames: Array<string> = projectOutput.contributors;
-            const everyFree = contributorNames.every(c => !contributorsAssigned.has(c));
+            const memberIds = contributorNames.map(name => {
+                assert.ok(contributorsIndexByName.has(name));
+                return contributorsIndexByName.get(name)!;
+            });
+
+            const everyFree = memberIds.every(m => !contributorsAssigned.has(m));
             if (!everyFree) {
                 skipProjects.push(projectOutput);
                 continue;
@@ -40,11 +45,6 @@ export function calculateScore(input: InputData, output: Output): number {
             const project = projectsInput.get(projectOutput.project)!;
 
             assert.equal(contributorNames.length, project.roles.length);
-
-            const memberIds = contributorNames.map(name => {
-                assert(contributorsIndexByName.has(name));
-                return contributorsIndexByName.get(name)!;
-            });
 
             for (let i = 0; i < contributors.length; i++) {
                 const role = project.roles[i];

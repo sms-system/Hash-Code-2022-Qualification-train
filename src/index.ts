@@ -41,8 +41,8 @@ async function run() {
         for (let i = 0; i < solutionFuncs.length; i += 1) {
             const solve = solutionFuncs[i];
             const solution = solve(data);
-            // const score = calculateScore(data, solution);
-            const score = 0;
+            const score = calculateScore(data, solution);
+            // const score = 0;
             tableRow.push(String(score));
             totalScore[i] += score;
             best = Math.max(best, score);
