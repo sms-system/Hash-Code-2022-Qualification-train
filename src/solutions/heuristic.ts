@@ -44,7 +44,7 @@ export const solve = ({
         }
     }
 
-    projects.sort((p1, p2) => (p1.bestBefore - p1.daysToComplete) - (p2.bestBefore - p2.daysToComplete));
+    projects = _.sortBy(projects, p => -(p.bestBefore + 100 * p.score));
 
     const result: Array<OutputProject> = [];
     const times = new Heap<number>();
@@ -55,6 +55,7 @@ export const solve = ({
         // find the best project to start
         for (let i = 0; i < projects.length; i++) {
             const project = projects[i];
+            const endDate = t + project.daysToComplete;
             const projectStart = project.bestBefore - project.daysToComplete;
             if (projectStarted[i]) {
                 continue;
@@ -65,7 +66,7 @@ export const solve = ({
                 continue;
             }
             for (const contributorId of assignedMemberIndices) {
-                contributorAvailable[contributorId] = t + project.daysToComplete;
+                contributorAvailable[contributorId] = endDate;
             }
             // recalculate skills according to mentoring scheme
             // const maxSkillLevel: Map<string, number> = new Map();
@@ -87,8 +88,11 @@ export const solve = ({
                 "project": project.name,
                 "contributors": assignedMemberIndices.map(i => contributors[i].name),
             }); 
-            projectStarted[i] = true;  
-            times.push(t + project.daysToComplete);
+            projectStarted[i] = true;
+
+            const score = project.score - Math.max(0, endDate - project.bestBefore);
+            console.log(`Project ${project.name} will end at ${endDate}, score will be ${score}`);
+            times.push(endDate);
         }
     }
 

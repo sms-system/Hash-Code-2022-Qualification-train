@@ -5,6 +5,7 @@ import * as fs from 'node:fs/promises';
 import readFile from './input';
 import { calculateScore } from './score';
 import type { Solution } from './types';
+import { format } from './output';
 const files: Array<string> = [
     'a_an_example.in.txt',
     'b_better_start_small.in.txt',
@@ -40,10 +41,13 @@ async function run() {
         for (let i = 0; i < solutionFuncs.length; i += 1) {
             const solve = solutionFuncs[i];
             const solution = solve(data);
-            const score = calculateScore(data, solution);
+            // const score = calculateScore(data, solution);
+            const score = 0;
             tableRow.push(String(score));
             totalScore[i] += score;
             best = Math.max(best, score);
+            const res = format(solution);
+            await fs.writeFile(`./output/${input_file}`, res);
         }
         totalScore[solutionFuncs.length] += best;
         tableRow.push(String(best));
