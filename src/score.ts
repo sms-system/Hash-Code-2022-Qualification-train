@@ -1,6 +1,7 @@
 import { Contributor, InputData, Project } from './types';
 import * as assert from 'assert';
 import { Output } from "./output";
+import { has } from "lodash";
 
 interface ProjectWIP {
     project: Project;
@@ -47,7 +48,8 @@ export function calculateScore(input: InputData, output: Output): number {
             ]));
             // check skill issues
             for (const role of projectInput.roles) {
-                assert.ok(role.level <= topSkills.get(role.name)!, `${role.name} ${role.level} > ${topSkills.get(role.name)}`);
+                assert.ok(role.level <= topSkills.get(role.name)!,
+                    `PROJECT:${projectInput.name} ROLE:${role.name} ${role.level} > ${topSkills.get(role.name)}`);
             }
             // remove contributors from pool
             contributors.forEach(c => {
@@ -58,6 +60,10 @@ export function calculateScore(input: InputData, output: Output): number {
                 const role = projectInput.roles[roleId];
                 const contributor = contributors[roleId];
                 const hasSkill = contributor.skills.find(skill => skill.name === role.name);
+                assert.ok(
+                    (hasSkill?.level ?? 0) + 1 >= role.level,
+                    `PROJECT:${projectInput.name} ROLE:${role.name} ${role.level} > ${topSkills.get(role.name)}`
+                );
                 if (hasSkill) {
                     if (hasSkill.level + 1 === role.level || hasSkill.level === role.level) {
                         hasSkill.level += 1;
@@ -81,7 +87,7 @@ export function calculateScore(input: InputData, output: Output): number {
         // resets
         for (const { project, contributorNames, doneAt } of projectsWIP) {
             if (doneAt === now) {
-                score += project.bestBefore >= now ?  project.score : Math.max(0, project.score - (now - project.bestBefore));
+                score += project.bestBefore >= now ? project.score : Math.max(0, project.score - (now - project.bestBefore));
             } else {
                 skipProjectsWIP.push({ project, contributorNames, doneAt });
                 assert.ok(doneAt > now);
