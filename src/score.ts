@@ -22,7 +22,7 @@ export function calculateScore(input: InputData, output: Output): number {
     let now = 0;
     let score = 0;
     while (true) {
-        assert.ok(now < 50000, 'TIME LIMIT');
+        assert.ok(now < 500000, 'TIME LIMIT');
         // assignments
         const skipProjects = [];
         for (const projectOutput of nonStartedProjects) {
@@ -47,7 +47,7 @@ export function calculateScore(input: InputData, output: Output): number {
             ]));
             // check skill issues
             for (const role of projectInput.roles) {
-                assert.ok(role.level <= topSkills.get(role.name)!);
+                assert.ok(role.level <= topSkills.get(role.name)!, `${role.name} ${role.level} > ${topSkills.get(role.name)}`);
             }
             // remove contributors from pool
             contributors.forEach(c => {
@@ -59,7 +59,7 @@ export function calculateScore(input: InputData, output: Output): number {
                 const contributor = contributors[roleId];
                 const hasSkill = contributor.skills.find(skill => skill.name === role.name);
                 if (hasSkill) {
-                    if (hasSkill.level + 1 === role.level) {
+                    if (hasSkill.level + 1 === role.level || hasSkill.level === role.level) {
                         hasSkill.level += 1;
                     }
                 } else {
