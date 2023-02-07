@@ -6,7 +6,7 @@ import { has } from "lodash";
 interface ProjectWIP {
     project: Project;
     doneAt: number;
-    contributorNames: Array<string>;
+    memberIds: Array<number>;
 }
 
 export function calculateScore(input: InputData, output: Output): number {
@@ -14,11 +14,15 @@ export function calculateScore(input: InputData, output: Output): number {
     const projectsInput = new Map(input.projects.map(project => [project.name, project]));
     let nonStartedProjects = [...output];
 
-    const allContributors: Map<string, Contributor> = new Map(
-        (JSON.parse(JSON.stringify(input.contributors)) as Array<Contributor>)
-            .map(x => [x.name, x])
+    const contributors: Array<Contributor> = JSON.parse(JSON.stringify(input.contributors));
+    const contributorsIndexByName: Map<string, number> = new Map(
+        input.contributors.map((value, index) => [value.name, index])
     );
-    const contributorsAssigned: Set<string> = new Set();
+    const contributorSkills: Array<Map<string, number>> = contributors.map(c => {
+        return new Map(c.skills.map(s => [s.name, s.level]));
+    });
+
+    const contributorsAssigned = new Set<number>();
 
     let now = 0;
     let score = 0;
@@ -33,51 +37,46 @@ export function calculateScore(input: InputData, output: Output): number {
                 skipProjects.push(projectOutput);
                 continue;
             }
-            const projectInput = projectsInput.get(projectOutput.project)!;
+            const project = projectsInput.get(projectOutput.project)!;
 
-            assert.equal(contributorNames.length, projectInput.roles.length);
+            assert.equal(contributorNames.length, project.roles.length);
 
-            const roleNames = new Set(projectInput.roles.map(role => role.name));
-            const contributors = contributorNames.map(c => allContributors.get(c)!);
-
-            const topSkills = new Map(Array.from(roleNames).map(skillName => [
-                skillName,
-                Math.max(
-                    ...contributors.map(c => c.skills.find(skill => skill.name === skillName)?.level || 0)
-                )
-            ]));
-            // check skill issues
-            for (const role of projectInput.roles) {
-                assert.ok(role.level <= topSkills.get(role.name)!,
-                    `PROJECT:${projectInput.name} ROLE:${role.name} ${role.level} > ${topSkills.get(role.name)}`);
-            }
-            // remove contributors from pool
-            contributors.forEach(c => {
-                contributorsAssigned.add(c.name);
+            const memberIds = contributorNames.map(name => {
+                assert(contributorsIndexByName.has(name));
+                return contributorsIndexByName.get(name)!;
             });
-            // levelup contributors
-            for (let roleId = 0; roleId < projectInput.roles.length; roleId++) {
-                const role = projectInput.roles[roleId];
-                const contributor = contributors[roleId];
-                const hasSkill = contributor.skills.find(skill => skill.name === role.name);
-                assert.ok(
-                    (hasSkill?.level ?? 0) + 1 >= role.level,
-                    `PROJECT:${projectInput.name} ROLE:${role.name} ${role.level} > ${topSkills.get(role.name)}`
-                );
-                if (hasSkill) {
-                    if (hasSkill.level + 1 === role.level || hasSkill.level === role.level) {
-                        hasSkill.level += 1;
-                    }
-                } else {
-                    if (role.level === 1) {
-                        contributor.skills.push({ name: role.name, level: 1 });
-                    }
+
+            for (let i = 0; i < contributors.length; i++) {
+                const role = project.roles[i];
+                const contributorLevels = contributorSkills[memberIds[i]];
+                const skill = contributorLevels.get(role.name) || 0;
+                assert.ok(role.level > skill + 1, `Invalid skill for role ${role.name} on project ${project.name}`);
+                if (skill == role.level) {
+                    continue;
                 }
+                let hasMentor = false;
+                for (let j = 0; j < contributors.length && !hasMentor; j++) {
+                    const skill = contributorSkills[memberIds[j]].get(role.name) || 0;
+                    hasMentor = skill >= role.level;
+                }
+                assert.ok(hasMentor, `Invalid skill for role ${role.name} on project ${project.name}`)
             }
+
+            // remove contributors from pool
+            memberIds.forEach(member => contributorsAssigned.add(member));
+
+            for (let i = 0; i <= contributors.length; i++) {
+                const role = project.roles[i];
+                const contributorLevels = contributorSkills[memberIds[i]];
+                const currentSkill = contributorLevels.get(role.name) || 0;
+                const newValue = Math.min(currentSkill + 1, role.level + 1);
+                contributorLevels.set(role.name, newValue);
+            }
+
             projectsWIP.push({
-                project: projectInput,
-                doneAt: now + projectInput.daysToComplete,
-                contributorNames: contributorNames,
+                project,
+                doneAt: now + project.daysToComplete,
+                memberIds,
             });
 
         }
@@ -85,16 +84,16 @@ export function calculateScore(input: InputData, output: Output): number {
 
         const skipProjectsWIP = [];
         // resets
-        for (const { project, contributorNames, doneAt } of projectsWIP) {
+        for (const { project, memberIds, doneAt } of projectsWIP) {
             if (doneAt === now) {
-                score += project.bestBefore >= now ? project.score : Math.max(0, project.score - (now - project.bestBefore));
+                score += Math.max(0, project.score - Math.min(0, project.bestBefore - now));
             } else {
-                skipProjectsWIP.push({ project, contributorNames, doneAt });
+                skipProjectsWIP.push({ project, memberIds, doneAt });
                 assert.ok(doneAt > now);
             }
             // return contributors to pool
-            contributorNames.forEach(name => {
-                contributorsAssigned.delete(name);
+            memberIds.forEach(member => {
+                contributorsAssigned.delete(member);
             });
         }
         projectsWIP = skipProjectsWIP;
