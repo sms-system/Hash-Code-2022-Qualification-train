@@ -1,3 +1,5 @@
+import { Output } from "./output";
+
 export type InputData = {
     contributors: Array<Contributor>;
     projects: Array<Project>;
@@ -21,6 +23,4 @@ export type Project = {
     roles: Array<Skill>;
 };
 
-export type OutputData = {};
-
-export type Solution = (input: InputData) => OutputData;
+export type Solution = (input: InputData) => Output;

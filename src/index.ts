@@ -40,7 +40,7 @@ async function run() {
         for (let i = 0; i < solutionFuncs.length; i += 1) {
             const solve = solutionFuncs[i];
             const solution = solve(data);
-            const score = calculateScore(full_input_file, solution);
+            const score = calculateScore(data, solution);
             tableRow.push(String(score));
             totalScore[i] += score;
             best = Math.max(best, score);
@@ -49,7 +49,7 @@ async function run() {
         tableRow.push(String(best));
         tableData.push(tableRow);
     }
-    
+
     tableData.push(['Total', ...totalScore.map(String)]);
     console.log(table(tableData, { columnDefault: { alignment: 'right' }}));
 }
