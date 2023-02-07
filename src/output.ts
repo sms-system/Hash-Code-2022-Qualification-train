@@ -1,9 +1,9 @@
-export interface Project {
+export interface OutputProject {
     project: string;
     contributors: Array<string>;
 }
 
-export type Output = Array<Project>;
+export type Output = Array<OutputProject>;
 
 
 export function format(result: Output) {
