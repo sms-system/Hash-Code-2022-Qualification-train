@@ -44,7 +44,10 @@ export const solve = ({
         }
     }
 
-    projects = _.sortBy(projects, p => -(p.bestBefore + 100 * p.score));
+    function score(project: Project, startTime: number): number {
+        const endTime = startTime + project.daysToComplete;
+        return Math.max(0, project.score - Math.max(0, endTime - project.bestBefore));
+    }
 
     const result: Array<OutputProject> = [];
     const times = new Heap<number>();
@@ -53,14 +56,15 @@ export const solve = ({
     while (!times.empty()) {
         const t = times.pop()!;
         // find the best project to start
+        projects = projects.filter((p, i) => !projectStarted[i]);
+        projects = _.sortBy(projects, project => {
+            return -score(project, t) / project.roles.length / project.daysToComplete;
+        });
+
         for (let i = 0; i < projects.length; i++) {
             const project = projects[i];
             const endDate = t + project.daysToComplete;
-            const projectStart = project.bestBefore - project.daysToComplete;
-            if (projectStarted[i]) {
-                continue;
-            }
-            const assignedMemberIndices = assignToProject(project, projectStart);
+            const assignedMemberIndices = assignToProject(project, t);
             if (assignedMemberIndices.length != project.roles.length) {
                 // could not take this project
                 continue;
@@ -68,13 +72,6 @@ export const solve = ({
             for (const contributorId of assignedMemberIndices) {
                 contributorAvailable[contributorId] = endDate;
             }
-            // recalculate skills according to mentoring scheme
-            // const maxSkillLevel: Map<string, number> = new Map();
-            // for (const contributorId of assignedMemberIndices) {
-            //     for (let [skill, value] of contributorSkillState[contributorId]) {
-            //         maxSkillLevel.set(skill, Math.max(maxSkillLevel.get(skill) ?? 0, value));
-            //     }
-            // }
             for (let i = 0; i < project.roles.length; i += 1) {
                 const role = project.roles[i];
                 const skillState = contributorSkillState[assignedMemberIndices[i]];
@@ -87,11 +84,10 @@ export const solve = ({
             result.push({
                 "project": project.name,
                 "contributors": assignedMemberIndices.map(i => contributors[i].name),
-            }); 
+            });
             projectStarted[i] = true;
 
-            const score = project.score - Math.max(0, endDate - project.bestBefore);
-            console.log(`Project ${project.name} will end at ${endDate}, score will be ${score}`);
+            console.log(`Project ${project.name} will end at ${endDate}, score will be ${score(project, t)}`);
             times.push(endDate);
         }
     }
