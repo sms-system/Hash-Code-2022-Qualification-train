@@ -15,12 +15,12 @@ export const solve = ({
     const assignToProject = (project: Project, startTime: number) => {
         const res = [];
         const used = new Set<number>();
-        for (const skill of project.roles) {
+        for (const role of project.roles) {
             let bestMatch = -1;
             let bestLevel = -1;
             for (let i = 0; i < contributorSkillState.length; i++) {
-                const currentSkill = contributorSkillState[i].get(skill.name) ?? 0;
-                if (used.has(i) || contributorAvailable[i] < startTime || currentSkill < skill.level) {
+                const currentSkill = contributorSkillState[i].get(role.name) ?? 0;
+                if (used.has(i) || contributorAvailable[i] < startTime || currentSkill < role.level) {
                     continue;
                 }
                 if (bestMatch == -1 || currentSkill < bestLevel) {
@@ -68,18 +68,21 @@ export const solve = ({
                 contributorAvailable[contributorId] = t + project.daysToComplete;
             }
             // recalculate skills according to mentoring scheme
-            const maxSkillLevel: Map<string, number> = new Map();
-            for (const contributorId of assignedMemberIndices) {
-                for (let [skill, value] of contributorSkillState[contributorId]) {
-                    maxSkillLevel.set(skill, Math.max(maxSkillLevel.get(skill) ?? 0, value));
+            // const maxSkillLevel: Map<string, number> = new Map();
+            // for (const contributorId of assignedMemberIndices) {
+            //     for (let [skill, value] of contributorSkillState[contributorId]) {
+            //         maxSkillLevel.set(skill, Math.max(maxSkillLevel.get(skill) ?? 0, value));
+            //     }
+            // }
+            for (let i = 0; i < project.roles.length; i += 1) {
+                const role = project.roles[i];
+                const skillState = contributorSkillState[assignedMemberIndices[i]];
+                const curSkillLevel = skillState.get(role.name) ?? 0;
+                if (curSkillLevel <= role.level) {
+                    skillState.set(role.name, curSkillLevel + 1);
                 }
             }
-            for (const contributorId of assignedMemberIndices) {
-                for (let [skill, maxLevel] of maxSkillLevel) {
-                    const newValue = Math.min(maxLevel, 1 + (maxSkillLevel.get(skill) ?? 0));
-                    contributorSkillState[contributorId].set(skill, newValue);
-                }
-            }
+            console.log(`Starting project ${project.name} at ${t}`);
             result.push({
                 "project": project.name,
                 "contributors": assignedMemberIndices.map(i => contributors[i].name),
@@ -88,8 +91,6 @@ export const solve = ({
             times.push(t + project.daysToComplete);
         }
     }
-
-    console.log(result);
 
     return result;
 }
