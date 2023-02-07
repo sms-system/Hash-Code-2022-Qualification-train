@@ -21,10 +21,10 @@ async function loadSolutions(): Promise<Record<string, Solution>> {
     const fullSolutionsPath = `${__dirname}/${solutionsPath}`;
     const solutionNames = await fs.readdir(fullSolutionsPath);
     const solutions = await Promise.all(
-        solutionNames.map(name => import(`${solutionsPath}/${name}`) as Promise<Solution>)
+        solutionNames.map(name => import(`${solutionsPath}/${name}`) as Promise<{solve: Solution}>)
     );
 
-    return _.zipObject(solutionNames, solutions);
+    return _.zipObject(solutionNames, solutions.map(({solve}) => solve));
 }
 
 async function run() {
