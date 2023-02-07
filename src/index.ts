@@ -40,9 +40,10 @@ async function run() {
         let best = 0;
         for (let i = 0; i < solutionFuncs.length; i += 1) {
             const solve = solutionFuncs[i];
+            const dataCopy = JSON.parse(JSON.stringify(data));
             const solution = solve(data);
-            // const score = calculateScore(data, solution);
-            const score = 0;
+            const score = calculateScore(dataCopy, solution);
+            // const score = 0;
             tableRow.push(String(score));
             totalScore[i] += score;
             best = Math.max(best, score);

@@ -2,6 +2,7 @@ import { Contributor, InputData, Project } from './types';
 import * as assert from 'assert';
 import { Output } from "./output";
 import { has } from "lodash";
+import _ = require('lodash');
 
 interface ProjectWIP {
     project: Project;
@@ -10,9 +11,7 @@ interface ProjectWIP {
 }
 
 export function calculateScore(input: InputData, output: Output): number {
-    let projectsWIP: Array<ProjectWIP> = [];
     const projectsInput = new Map(input.projects.map(project => [project.name, project]));
-    let nonStartedProjects = [...output];
 
     const contributors: Array<Contributor> = JSON.parse(JSON.stringify(input.contributors));
     const contributorsIndexByName: Map<string, number> = new Map(
@@ -22,86 +21,54 @@ export function calculateScore(input: InputData, output: Output): number {
         return new Map(c.skills.map(s => [s.name, s.level]));
     });
 
-    const contributorsAssigned = new Set<number>();
+    const contributorFreeTime = new Map<number, number>();
 
-    let now = 0;
     let score = 0;
-    while (true) {
-        assert.ok(now < 500000, 'TIME LIMIT');
-        // assignments
-        const skipProjects = [];
-        for (const projectOutput of nonStartedProjects) {
-            const contributorNames: Array<string> = projectOutput.contributors;
-            const everyFree = contributorNames.every(c => !contributorsAssigned.has(c));
-            if (!everyFree) {
-                skipProjects.push(projectOutput);
+    let now = 0;
+
+    for (const projectOutput of output) {
+        const contributorNames: Array<string> = projectOutput.contributors;
+        const memberIds = contributorNames.map(name => {
+            assert.ok(contributorsIndexByName.has(name));
+            return contributorsIndexByName.get(name)!;
+        });
+        const allFreeTime = _.max(memberIds.map(mid => contributorFreeTime.get(mid) || 0).concat(now))!;
+        now = allFreeTime;
+        const project = projectsInput.get(projectOutput.project)!;
+        // console.log("Project", project, projectOutput, now);
+        // console.log(contributorSkills);
+
+        assert.equal(contributorNames.length, project.roles.length);
+
+        for (let i = 0; i < memberIds.length; i++) {
+            const role = project.roles[i];
+            const contributorLevels = contributorSkills[memberIds[i]];
+            const skill = contributorLevels.get(role.name) || 0;
+            assert.ok(role.level <= skill + 1, `Invalid skill for role ${role.name} for ${contributors[memberIds[i]].name} on project ${project.name}`);
+            if (skill >= role.level) {
                 continue;
             }
-            const project = projectsInput.get(projectOutput.project)!;
-
-            assert.equal(contributorNames.length, project.roles.length);
-
-            const memberIds = contributorNames.map(name => {
-                assert(contributorsIndexByName.has(name));
-                return contributorsIndexByName.get(name)!;
-            });
-
-            for (let i = 0; i < contributors.length; i++) {
-                const role = project.roles[i];
-                const contributorLevels = contributorSkills[memberIds[i]];
-                const skill = contributorLevels.get(role.name) || 0;
-                assert.ok(role.level > skill + 1, `Invalid skill for role ${role.name} on project ${project.name}`);
-                if (skill == role.level) {
-                    continue;
-                }
-                let hasMentor = false;
-                for (let j = 0; j < contributors.length && !hasMentor; j++) {
-                    const skill = contributorSkills[memberIds[j]].get(role.name) || 0;
-                    hasMentor = skill >= role.level;
-                }
-                assert.ok(hasMentor, `Invalid skill for role ${role.name} on project ${project.name}`)
+            let hasMentor = false;
+            for (let j = 0; j < memberIds.length && !hasMentor; j++) {
+                const skill = contributorSkills[memberIds[j]].get(role.name) || 0;
+                hasMentor = skill >= role.level;
             }
-
-            // remove contributors from pool
-            memberIds.forEach(member => contributorsAssigned.add(member));
-
-            for (let i = 0; i <= contributors.length; i++) {
-                const role = project.roles[i];
-                const contributorLevels = contributorSkills[memberIds[i]];
-                const currentSkill = contributorLevels.get(role.name) || 0;
-                const newValue = Math.min(currentSkill + 1, role.level + 1);
-                contributorLevels.set(role.name, newValue);
-            }
-
-            projectsWIP.push({
-                project,
-                doneAt: now + project.daysToComplete,
-                memberIds,
-            });
-
+            assert.ok(hasMentor, `Invalid skill for role ${role.name} on project ${project.name}`)
         }
-        nonStartedProjects = skipProjects;
 
-        const skipProjectsWIP = [];
-        // resets
-        for (const { project, memberIds, doneAt } of projectsWIP) {
-            if (doneAt === now) {
-                score += Math.max(0, project.score - Math.min(0, project.bestBefore - now));
-            } else {
-                skipProjectsWIP.push({ project, memberIds, doneAt });
-                assert.ok(doneAt > now);
-            }
-            // return contributors to pool
-            memberIds.forEach(member => {
-                contributorsAssigned.delete(member);
-            });
-        }
-        projectsWIP = skipProjectsWIP;
+        const endDate = allFreeTime + project.daysToComplete;
+        memberIds.forEach(member => contributorFreeTime.set(member, endDate));
 
-        now++;
-        if (projectsWIP.length === 0 && nonStartedProjects.length === 0) {
-            break;
+        for (let i = 0; i < memberIds.length; i++) {
+            const role = project.roles[i];
+            const contributorLevels = contributorSkills[memberIds[i]];
+            const currentSkill = contributorLevels.get(role.name) || 0;
+            const newValue = Math.max(currentSkill, Math.min(currentSkill + 1, role.level + 1));
+            // console.log(`Updated skill ${role.name} of ${contributors[memberIds[i]].name} to ${newValue}`)
+            contributorLevels.set(role.name, newValue);
         }
+
+        score += Math.max(0, project.score - Math.min(0, project.bestBefore - endDate));
     }
 
     return score;
