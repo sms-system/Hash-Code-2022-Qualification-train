@@ -5,7 +5,7 @@ import * as fs from 'node:fs/promises';
 import readFile from './input';
 import { calculateScore } from './score';
 import type { Solution } from './types';
-const files = [
+const files: Array<string> = [
     // file names in input
 ];
 
@@ -18,9 +18,6 @@ async function loadSolutions(): Promise<Record<string, Solution>> {
     const solutions = await Promise.all(
         solutionNames.map(name => import(`${solutionsPath}/${name}`) as Promise<Solution>)
     );
-
-    console.log(solutionNames);
-    console.log(solutions);
 
     return _.zipObject(solutionNames, solutions);
 }
